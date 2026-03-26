@@ -62,6 +62,13 @@ resource "aws_iam_role_policy" "custom_access" {
       {
         Effect = "Allow"
         Action = [
+          "translate:TranslateText"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "dynamodb:UpdateItem",
           "dynamodb:GetItem",
           "dynamodb:PutItem"
