@@ -19,7 +19,7 @@ module "notifications" {
 
 module "logs_bucket" {
   source      = "../../modules/s3_logs"
-  bucket_name = "rybchak-yuliia-lab4-16-logs"
+  bucket_name = "rybchak-yuliia-lab5-16-logs"
 }
 
 module "backend" {
