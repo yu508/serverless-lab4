@@ -10,3 +10,4 @@ __pycache__/
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+modules/lambda/app.zip
