@@ -11,3 +11,4 @@ __pycache__/
 .idea/**/dictionaries
 .idea/**/shelf
 modules/lambda/app.zip
+lab5/modules/lambda/app.zip
