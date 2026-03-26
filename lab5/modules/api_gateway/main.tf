@@ -43,6 +43,12 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
 
+resource "aws_apigatewayv2_route" "put_notify" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "PUT /orders/{id}/notify"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
 output "api_endpoint" {
   value = aws_apigatewayv2_api.http_api.api_endpoint
 }
