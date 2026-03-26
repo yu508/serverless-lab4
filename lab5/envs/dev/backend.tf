@@ -9,8 +9,8 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "tf-state-rybchak-yuliia-lab4-16"
-    key          = "envs/dev/terraform.tfstate"
+    bucket       = "tf-state-rybchak-yuliia-lab5-16"
+    key          = "lab5/envs/dev/terraform.tfstate"
     region       = "eu-central-1"
     encrypt      = true
     use_lockfile = true
