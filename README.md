@@ -1,54 +1,84 @@
-# Serverless Lab 4 - AWS (V - 16)
+# Лабораторна робота №5
+## AWS serverless-застосунок з AI-сервісом (варіант 16)
 
+### Виконала:
+Рибчак Юлія
 
-У цій лабораторній роботі реалізовано serverless-застосунок на AWS для зміни статусу замовлення.
+---
 
-API дозволяє оновити статус замовлення через HTTP-запит та автоматично надсилає сповіщення.
+## Опис роботи
+
+У цій лабораторній роботі реалізовано розширення попередньої serverless-системи на AWS.
+
+Було створено API для:
+- оновлення статусу замовлення
+- надсилання сповіщення про зміну статусу
+- перекладу тексту сповіщення через Amazon Translate
 
 ---
 
 ## Використані сервіси AWS
 
-- AWS Lambda — обробка запиту
-- Amazon API Gateway — HTTP API
-- Amazon DynamoDB — зберігання замовлень
-- Amazon SNS — email-сповіщення
-- Amazon S3 — зберігання логів
-- Amazon CloudWatch — логування
+- AWS Lambda
+- Amazon API Gateway
+- Amazon DynamoDB
+- Amazon SNS
+- Amazon S3
+- Amazon CloudWatch
+- Amazon Translate
+- IAM
+- Terraform
 
 ---
 
- Розгортання
-Ініціалізація Terraform:
-terraform init
-Перевірка:
-terraform plan
-Розгортання:
-terraform apply -auto-approve
-Тестування
-Через Postman або PowerShell:
-PUT https://<api-url>/orders/1/status
+## Функціональність
 
-Body:
+### 1. Оновлення статусу замовлення
+Endpoint:
+
+```text
+PUT /orders/{id}/status
+
+Приклад body:
 
 {
   "status": "shipped"
 }
- 
-Результати
 
-Після виконання запиту:
+2. Надсилання перекладеного сповіщення
 
-оновлюється запис у DynamoDB
-надсилається email через SNS
-створюється лог у S3
-запис логів у CloudWatch
- Очищення ресурсів
+Endpoint:
 
-Після завершення:
+PUT /orders/{id}/notify?lang=uk
 
-terraform destroy -auto-approve
+Цей endpoint:
 
- Автор
+бере статус замовлення з DynamoDB
+формує текст сповіщення
+перекладає його через Amazon Translate
+надсилає повідомлення через SNS
+зберігає результат у DynamoDB
+пише лог у S3
 
-Рибчак Юлія
+Розгортання
+
+У папці lab5/envs/dev виконати:
+
+terraform init -reconfigure
+terraform fmt -recursive
+terraform validate
+terraform plan
+terraform apply -auto-approve
+
+Приклад перевірки через Postman / curl
+
+Оновлення статусу:
+
+PUT /orders/1/status
+
+Надсилання сповіщення:
+
+PUT /orders/1/notify?lang=uk
+Додатково
+
+Для зручності тестування реалізовано простий HTML-інтерфейс (ui/index.html), через який можна викликати API без Postman.

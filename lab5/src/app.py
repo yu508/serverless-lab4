@@ -11,8 +11,10 @@ LOG_BUCKET = os.environ["LOG_BUCKET"]
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
+
 sns = boto3.client("sns")
 s3 = boto3.client("s3")
+
 translate = boto3.client("translate", region_name="eu-central-1")
 
 
@@ -66,7 +68,7 @@ def log_to_s3(key_prefix, payload):
 def update_order_status(order_id, new_status):
     now = datetime.utcnow().isoformat()
 
-    update_result = table.update_item(
+    result = table.update_item(
         Key={"id": order_id},
         UpdateExpression="SET #st = :status, updated_at = :updated_at",
         ExpressionAttributeNames={"#st": "status"},
@@ -77,41 +79,36 @@ def update_order_status(order_id, new_status):
         ReturnValues="ALL_NEW"
     )
 
-    item = update_result.get("Attributes", {})
+    item = result.get("Attributes", {})
 
     log_to_s3(
-        key_prefix=f"orders/{order_id}",
-        payload={
-            "event": "order_status_updated",
+        f"orders/{order_id}",
+        {
+            "event": "status_updated",
             "order_id": order_id,
-            "new_status": new_status,
-            "updated_at": now
+            "status": new_status,
+            "time": now
         }
     )
 
     return item
 
 
-def get_order(order_id):
-    result = table.get_item(Key={"id": order_id})
-    return result.get("Item")
-
-
-def translate_notification_text(source_text, target_lang):
+def translate_text_safe(text, lang):
     try:
         result = translate.translate_text(
-            Text=source_text,
+            Text=text,
             SourceLanguageCode="en",
-            TargetLanguageCode=target_lang
+            TargetLanguageCode=lang
         )
-        return result.get("TranslatedText", source_text)
+        return result["TranslatedText"]
     except Exception as e:
         print(f"Translate error: {str(e)}")
-        return source_text
+        return text
 
 
 def notify_order(order_id, lang):
-    item = get_order(order_id)
+    item = table.get_item(Key={"id": order_id}).get("Item")
 
     if not item:
         return response(404, {"message": "Замовлення не знайдено"})
@@ -119,39 +116,38 @@ def notify_order(order_id, lang):
     status = item.get("status", "unknown")
     source_text = f"Your order #{order_id} status has been updated to {status}."
 
-    translated_text = translate_notification_text(source_text, lang)
+    translated = translate_text_safe(source_text, lang)
 
     sns.publish(
         TopicArn=TOPIC_ARN,
         Subject=f"Order {order_id} notification",
-        Message=translated_text
+        Message=translated
     )
 
     now = datetime.utcnow().isoformat()
 
     table.update_item(
         Key={"id": order_id},
-        UpdateExpression=(
-            "SET translated_notification = :translated_notification, "
-            "notification_lang = :notification_lang, "
-            "notification_sent_at = :notification_sent_at"
-        ),
+        UpdateExpression="""
+            SET translated_notification = :t,
+                notification_lang = :l,
+                notification_sent_at = :time
+        """,
         ExpressionAttributeValues={
-            ":translated_notification": translated_text,
-            ":notification_lang": lang,
-            ":notification_sent_at": now
+            ":t": translated,
+            ":l": lang,
+            ":time": now
         }
     )
 
     log_to_s3(
-        key_prefix=f"notifications/{order_id}",
-        payload={
-            "event": "translated_notification_sent",
+        f"notifications/{order_id}",
+        {
+            "event": "notification_sent",
             "order_id": order_id,
-            "language": lang,
-            "source_text": source_text,
-            "translated_notification": translated_text,
-            "notification_sent_at": now
+            "lang": lang,
+            "text": translated,
+            "time": now
         }
     )
 
@@ -159,37 +155,37 @@ def notify_order(order_id, lang):
         "message": "Сповіщення перекладено та надіслано",
         "order_id": order_id,
         "language": lang,
-        "translated_notification": translated_text
+        "translated_notification": translated
     })
 
 
 def handler(event, context):
     try:
-        http_method = get_http_method(event)
-        raw_path = get_raw_path(event)
+        method = get_http_method(event)
+        path = get_raw_path(event)
         order_id = get_order_id(event)
 
-        if http_method != "PUT":
+        if method != "PUT":
             return response(405, {"message": "Метод не дозволено"})
 
         if not order_id:
-            return response(400, {"message": "Не вказано order id"})
+            return response(400, {"message": "Order ID required"})
 
-        if raw_path.endswith(f"/orders/{order_id}/status"):
+        if path.endswith(f"/orders/{order_id}/status"):
             body = parse_body(event)
-            new_status = body.get("status")
+            status = body.get("status")
 
-            if not new_status:
-                return response(400, {"message": "Поле 'status' є обов'язковим"})
+            if not status:
+                return response(400, {"message": "Field 'status' is required"})
 
-            item = update_order_status(order_id, new_status)
+            item = update_order_status(order_id, status)
 
             return response(200, {
                 "message": "Статус замовлення успішно оновлено",
                 "item": item
             })
 
-        if raw_path.endswith(f"/orders/{order_id}/notify"):
+        if path.endswith(f"/orders/{order_id}/notify"):
             lang = get_query_lang(event)
             return notify_order(order_id, lang)
 
@@ -197,7 +193,7 @@ def handler(event, context):
 
     except ClientError as e:
         print(f"AWS error: {str(e)}")
-        return response(500, {"message": "Помилка AWS"})
+        return response(500, {"message": "AWS error"})
     except Exception as e:
         print(f"Error: {str(e)}")
-        return response(500, {"message": "Внутрішня помилка сервера"})
+        return response(500, {"message": "Internal error"})

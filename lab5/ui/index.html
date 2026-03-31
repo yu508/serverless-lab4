@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab 5 — AWS Orders API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 760px;
+            margin: 40px auto;
+            padding: 0 16px;
+            line-height: 1.5;
+        }
+        h1 { margin-bottom: 8px; }
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 14px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .hint {
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>Lab 5 — AWS Orders API</h1>
+<p class="hint">Спочатку онови статус, потім надішли перекладене сповіщення.</p>
+
+<div class="card">
+    <h2>1. Оновити статус замовлення</h2>
+
+    <label for="apiUrl">API URL</label>
+    <input id="apiUrl" type="text" value="https://j9ada16eme.execute-api.eu-central-1.amazonaws.com" />
+
+    <label for="orderIdStatus">Order ID</label>
+    <input id="orderIdStatus" type="text" value="1" />
+
+    <label for="statusValue">Новий статус</label>
+    <input id="statusValue" type="text" value="shipped" />
+
+    <button onclick="updateStatus()">Оновити статус</button>
+</div>
+
+<div class="card">
+    <h2>2. Надіслати перекладене сповіщення</h2>
+
+    <label for="orderIdNotify">Order ID</label>
+    <input id="orderIdNotify" type="text" value="1" />
+
+    <label for="langValue">Мова</label>
+    <input id="langValue" type="text" value="uk" />
+
+    <button onclick="sendNotification()">Надіслати сповіщення</button>
+</div>
+
+<div class="card">
+    <h2>Результат</h2>
+    <pre id="result">Тут з’явиться відповідь API...</pre>
+</div>
+
+<script>
+    async function showResponse(response, resultEl) {
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch {
+            resultEl.textContent = `HTTP ${response.status}\n${text}`;
+        }
+    }
+
+    async function updateStatus() {
+        const apiUrl = document.getElementById("apiUrl").value.trim().replace(/\/$/, "");
+        const orderId = document.getElementById("orderIdStatus").value.trim();
+        const status = document.getElementById("statusValue").value.trim();
+        const result = document.getElementById("result");
+
+        try {
+            const response = await fetch(`${apiUrl}/orders/${orderId}/status`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ status })
+            });
+
+            await showResponse(response, result);
+        } catch (error) {
+            result.textContent = "Помилка: " + error.message;
+        }
+    }
+
+    async function sendNotification() {
+        const apiUrl = document.getElementById("apiUrl").value.trim().replace(/\/$/, "");
+        const orderId = document.getElementById("orderIdNotify").value.trim();
+        const lang = document.getElementById("langValue").value.trim();
+        const result = document.getElementById("result");
+
+        try {
+            const response = await fetch(`${apiUrl}/orders/${orderId}/notify?lang=${encodeURIComponent(lang)}`, {
+                method: "PUT"
+            });
+
+            await showResponse(response, result);
+        } catch (error) {
+            result.textContent = "Помилка: " + error.message;
+        }
+    }
+</script>
+</body>
+</html>
